@@ -34,17 +34,20 @@ Cloudformationテンプレートを格納しているディレクトリ。
 ターゲットサーバ ⇒ ~./docker/target_ansible/Dockerfile
 コントロールサーバ ⇒ ~./docker/controle_ansible/Dockerfile 
 10. ：ecs_service.ymlテンプレートでECSサービス(コンテナ)を作成する。<br>
+11. ：踏み台サーバからコントロールサーバへSSH接続し、「~./.ssh/config」にコンテナ情報を記載する。<br>
 
 ## 動作確認<br>
-- 動作確認要件①：Ansibleでの疎通確認<br>
+- 動作確認1：WebコンテナへのALBを介したHTTPSアクセス
+  - 外部インターネットからドメインを使用し、ALBを介したHTTPSアクセスが可能であることを確認する。<br>
+- 動作確認2：Ansibleでの疎通確認<br>
   - コントロールサーバからターゲットサーバへ以下コマンドを押打し、Ansibleでの疎通確認が取れることを確認する。<br>
 ```bash
 $ pwd
 /etc/ansible
 $ ansible -i hosts xx.xx.xx.xx(ホストインスタンスのプライベートIP) -m ping
 ```
-- 動作確認要件②：テスト用playbook.ymlの実行
-  - テスト用playbook.ymlを実行し、コントロールサーバからターゲットサーバへのplaybookが実行できることを確認する。<br>
+- 動作確認3：テスト用playbook.ymlの実行<br>
+  - 以下、テスト用playbook.ymlを実行し、コントロールサーバからターゲットサーバへのplaybookが実行できることを確認する。<br>
 ```bash
 # コントロールサーバ
 $ pwd
