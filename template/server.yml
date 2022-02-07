@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create Server By chibiharu"
+
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - PJPrefix
+          - KeyName
+
+# ------------------------------------------------------------
+# Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### Project Prefix ###
+  PJPrefix:
+    Type: 'String'
+### Key pair ###
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Default: "<キーペア名を指定>"
+    
+
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+# EC2
+# ------------------------------------------------------------
+### BationServer AZ-A ###
+  BationServerA: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: ami-032d6db78f84e8bf5
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: { "Fn::ImportValue": !Sub "${PJPrefix}-PublicSubnet-A" }
+          GroupSet:
+            - { "Fn::ImportValue": !Sub "${PJPrefix}-Bation-SG" }
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo yum -y update
+          # Setup Local
+          sudo localectl set-locale LANG=ja_JP.utf8
+          source /etc/locale.conf
+          # Setup TimeZone
+          sudo sed -ie 's/ZONE=\"UTC\"/ZONE=\"Asia\/Tokyo\"/g' /etc/sysconfig/clock
+          sudo sed -ie 's/UTC=true/UTC=false/g' /etc/sysconfig/clock
+          sudo ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+          # Setup SSM
+          sudo systemctl start amazon-ssm-agent.service
+          sudo systemctl enable amazon-ssm-agent.service
+      Tags:
+          - Key: Name
+            Value: !Sub "${PJPrefix}-BationServerA"
+            
+            
+# ------------------------------------------------------------
+# EIP
+# ------------------------------------------------------------
+### EIP to bationServerA ###
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref BationServerA
+      Domain: vpc
+      Tags:
+         - Key: Name
+           Value: !Sub "${PJPrefix}-BationServerA-EIP"

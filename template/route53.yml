@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create Route53 Recode By chibiharu"
+
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - PJPrefix
+          - HostedZoneID
+          - SubDomain
+          
+          
+# ------------------------------------------------------------
+# Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### Project Prefix ###
+  PJPrefix:
+    Type: String
+### Hosted Zone ###
+  HostedZoneID:
+    Type: String
+    Default: '<ホストゾーンIDを指定>'
+  SubDomain:
+    Type: String
+    Default: '<サブドメインを指定 - 例：www.example.com>'
+    
+
+### Resources ###
+Resources: 
+# ------------------------------------------------------------
+#  Route53
+# ------------------------------------------------------------
+### Alias ALB ARN ###
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneID
+      Comment: "Alias to ALB"
+      Name: !Sub '${SubDomain}'
+      Type: A
+      AliasTarget:
+        HostedZoneId: { "Fn::ImportValue": !Sub '${PJPrefix}-ALB-CanonicalHostedZoneID' }
+        DNSName: { "Fn::ImportValue": !Sub '${PJPrefix}-ALB-DNSName' }
+        
+        

@@ -1,0 +1,5 @@
+- hosts: Web
+  tasks:
+  - name: "test"
+    shell: |
+        touch /home/ec2-user/hoge.txt

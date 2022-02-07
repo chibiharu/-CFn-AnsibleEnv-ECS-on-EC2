@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:
+  "Create ECS Service By chibiharu"
+
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          ## Controle Node Parametrs ##
+          - ServiceNameByControle
+          - DesiredServiceCountByControle
+          - ImageURIByControle
+          - ContainerNameByControle
+          ## Target Node Parametrs ##
+          - ServiceNameByTargetWeb
+          - DesiredServiceCountByTargetWeb
+          - ImageURIByTargetWeb
+          - ContainerNameByTargetWeb
+          ## Share Parametrs ##
+          - PJPrefix
+          - ContainerPort22
+          - ContainerPort80
+          
+          
+# ------------------------------------------------------------
+#  Input Parametrs
+# ------------------------------------------------------------        
+Parameters:
+### Controle Node Parametrs ###
+  ServiceNameByControle:
+    Type: "String"
+    Default: "Ansible-Controle-Service"
+  DesiredServiceCountByControle:
+    Type: "Number"
+    Default: "1"
+  ImageURIByControle:
+    Type: "String"
+    Default: "<ECR内のImageURIを指定(Ansibleコントロールノード)>"
+  ContainerNameByControle:
+    Type: "String"
+    Default: "Ansible-Controle-Container"
+### Target Node - Web Parametrs ###
+  ServiceNameByTargetWeb:
+    Type: "String"
+    Default: "Ansible-Target-Service"
+  DesiredServiceCountByTargetWeb:
+    Type: "Number"
+    Default: "2"
+  ImageURIByTargetWeb:
+    Type: "String"
+    Default: "<ECR内のImageURIを指定(ターゲットノード)>"
+  ContainerNameByTargetWeb:
+    Type: "String"
+    Default: "Ansible-Target-Container"
+### Share Parametrs ###
+  PJPrefix:
+    Type: String
+  ContainerPort22:
+    Type: "Number"
+    Default: "22"
+  ContainerPort80:
+    Type: "Number"
+    Default: "80"  
+    
+    
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+#  ECS TaskDefinition
+# ------------------------------------------------------------
+### タスク定義の作成（Control Node） ###
+  TaskDefinitionByControle:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      ### タスクの作成 ###
+      ContainerDefinitions: 
+        - Name: !Ref "ContainerNameByControle"
+          Image: !Ref "ImageURIByControle"
+          Cpu: "0"
+          Memory: "128"
+          PortMappings: 
+            - ContainerPort: !Ref "ContainerPort22"
+              HostPort: "0"
+          Essential: "true" 
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Sub "/ecs/${ServiceNameByControle}"
+              awslogs-region: "ap-northeast-1"
+              awslogs-stream-prefix: "ecs"
+              awslogs-create-group: "true"
+      Family: !Sub "${ServiceNameByControle}-task"
+      NetworkMode: "bridge"
+      Tags: 
+        - Key: "Name"
+          Value: !Sub "${ServiceNameByControle}-task"
+          
+  ### タスク定義の作成（Target Node - Web） ###
+  TaskDefinitionByTargetWeb:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      ### タスクの作成 ###
+      ContainerDefinitions: 
+        - Name: !Ref "ContainerNameByTargetWeb"
+          Image: !Ref "ImageURIByTargetWeb"
+          Cpu: "0"
+          Memory: "128"
+          PortMappings: 
+            - ContainerPort: !Ref "ContainerPort80"
+              HostPort: "0"
+            - ContainerPort: !Ref "ContainerPort22"
+              HostPort: "0"
+          Essential: "true" 
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Sub "/ecs/${ServiceNameByTargetWeb}"
+              awslogs-region: "ap-northeast-1"
+              awslogs-stream-prefix: "ecs"
+              awslogs-create-group: "true"
+      Family: !Sub "${ServiceNameByTargetWeb}-task"
+      NetworkMode: "bridge"
+      Tags: 
+        - Key: "Name"
+          Value: !Sub "${ServiceNameByTargetWeb}-task"
+          
+          
+# ------------------------------------------------------------
+#  ECS Service
+# ------------------------------------------------------------
+### サービスの作成（Controle Node） ###
+  ECSServiceByControle:
+    Type: "AWS::ECS::Service"
+    Properties: 
+      ServiceName: !Ref "ServiceNameByControle"
+      Cluster: { "Fn::ImportValue": !Sub "${PJPrefix}-ClusterARN" }
+      DesiredCount: !Ref "DesiredServiceCountByControle"
+      LaunchType: "EC2"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration:
+        MaximumPercent: "200"
+        MinimumHealthyPercent: "50"
+      Tags: 
+        - Key: "Name"
+          Value: !Ref "ServiceNameByControle"
+      TaskDefinition: !Ref TaskDefinitionByControle
+      
+### サービスの作成（Target Node） ###
+  ECSServiceByTargetWeb:
+    Type: "AWS::ECS::Service"
+    Properties: 
+      ServiceName: !Ref "ServiceNameByTargetWeb"
+      Cluster: { "Fn::ImportValue": !Sub "${PJPrefix}-ClusterARN" }
+      DesiredCount: !Ref "DesiredServiceCountByTargetWeb"
+      LaunchType: "EC2"
+      LoadBalancers: 
+        - TargetGroupArn: { "Fn::ImportValue": !Sub "${PJPrefix}-TargetGroup" }
+          ContainerName: !Ref "ContainerNameByTargetWeb"
+          ContainerPort: !Ref "ContainerPort80"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration:
+        MaximumPercent: "200"
+        MinimumHealthyPercent: "50"
+      Tags: 
+        - Key: "Name"
+          Value: !Ref "ServiceNameByTargetWeb"
+      TaskDefinition: !Ref TaskDefinitionByTargetWeb
+      
+      

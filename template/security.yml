@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create Security Group By chibiharu"
+
+# ------------------------------------------------------------
+# Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### Project Prefix ###
+  PJPrefix:
+    Type: String
+    
+
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+# SecurityGroup
+# ------------------------------------------------------------
+### Bation Security Group ###
+    BationSG:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "ssh"
+            GroupName: !Sub "${PJPrefix}-Bation-SG"
+            VpcId: { "Fn::ImportValue": !Sub "${PJPrefix}-vpc" }
+            Tags: 
+                - Key: Name
+                  Value: !Sub "${PJPrefix}-Public-bation-SG"
+            SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort : 22
+                ToPort : 22
+                CidrIp: 0.0.0.0/0
+                
+### ALB Security Group ###
+    ALBSG:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "https"
+            GroupName: !Sub "${PJPrefix}-ALB-SG"
+            VpcId: { "Fn::ImportValue": !Sub "${PJPrefix}-vpc" }
+            Tags: 
+                - Key: Name
+                  Value: !Sub "${PJPrefix}-Public-ALB-SG"
+            SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort : 443
+                ToPort : 443
+                CidrIp: 0.0.0.0/0
+
+### Application Security Group ###
+    AppSG:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: "ssh,https(from ALB)"
+            GroupName: !Sub "${PJPrefix}-App-SG"
+            VpcId: { "Fn::ImportValue": !Sub "${PJPrefix}-vpc" }
+            Tags: 
+                - Key: Name
+                  Value: !Sub "${PJPrefix}-Public-App-SG"
+            SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort: 32768
+                ToPort: 61000
+                SourceSecurityGroupId: !Ref "BationSG"
+              - IpProtocol: tcp
+                FromPort: 32768
+                ToPort: 61000
+                SourceSecurityGroupId: !Ref "ALBSG"
+             
+                
+# ------------------------------------------------------------
+# Output Parameter
+# ------------------------------------------------------------
+Outputs:
+### SecurityGroup ###
+## Bation-SG ##
+    BationSG:
+        Value: !Ref BationSG
+        Export:
+            Name: !Sub "${PJPrefix}-Bation-SG"
+            
+## ALB-SG ##
+    ALBSG:
+        Value: !Ref ALBSG
+        Export:
+            Name: !Sub "${PJPrefix}-ALB-SG"
+            
+## App-SG ##
+    AppSG:
+        Value: !Ref AppSG
+        Export:
+            Name: !Sub "${PJPrefix}-App-SG"

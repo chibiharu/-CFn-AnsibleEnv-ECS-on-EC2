@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create ECR by chibiharu"
+
+# ------------------------------------------------------------
+#  Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### ECR RepositoryName ###
+  PJPrefix:
+    Type: "String"
+    Description: "Project prefix"
+  RepositoryName: 
+    Type: String
+    Default: "repo"
+
+
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+#  ECR
+# ------------------------------------------------------------
+  ECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${PJPrefix}-${RepositoryName}"

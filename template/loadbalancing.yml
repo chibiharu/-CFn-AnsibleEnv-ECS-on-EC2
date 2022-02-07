@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create LoadBalancing By chibiharu"
+
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - PJPrefix
+          - ALBCertificateARN
+          
+          
+# ------------------------------------------------------------
+# Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### Project Prefix ###
+  PJPrefix:
+    Type: String
+### ACM ARN ###
+  ALBCertificateARN:
+    Type: "String"
+    Default: "<ACMの証明書ARNを指定>"
+
+
+### Resources ###
+Resources: 
+# ------------------------------------------------------------
+#  Target Group
+# ------------------------------------------------------------
+  TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Name: !Sub "${PJPrefix}-TargetContainer-TargetGroup"
+      # ヘルスチェックを有効にする
+      HealthCheckEnabled: "true"
+      # ヘルスチェックの実行間隔
+      HealthCheckIntervalSeconds: "30"
+      # ヘルスチェックのタイムアウト時間
+      HealthCheckTimeoutSeconds: "5"
+      # ヘルスチェック失敗と見なすまでの回数
+      HealthyThresholdCount: "5"
+      # ヘルスチェック時の確認パス
+      HealthCheckPath: "/"
+      HealthCheckProtocol: "HTTP"
+      # ヘルスチェックで200コードが返ってくればOK
+      Matcher:
+        HttpCode: "200"
+      Protocol: "HTTP"
+      Port: "80"
+      VpcId: { "Fn::ImportValue": !Sub "${PJPrefix}-vpc" }
+      Tags: 
+        - Key: "Name"
+          Value: !Sub "${PJPrefix}-TargetContainer-TargetGroup"
+      
+
+# ------------------------------------------------------------
+#  ALB
+# ------------------------------------------------------------
+### ALB ###
+  ALB:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${PJPrefix}-ALB"
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-ALB"
+      Scheme: "internet-facing"
+      LoadBalancerAttributes:
+        - Key: "deletion_protection.enabled"
+          Value: false
+        - Key: "idle_timeout.timeout_seconds"
+          Value: 60
+        - Key: "access_logs.s3.enabled"
+          Value: false
+      SecurityGroups:
+        - { "Fn::ImportValue": !Sub "${PJPrefix}-ALB-SG" }
+      Subnets:
+        - { "Fn::ImportValue": !Sub "${PJPrefix}-PublicSubnet-A" }
+        - { "Fn::ImportValue": !Sub "${PJPrefix}-PublicSubnet-C" }
+        
+        
+### HTTP通信のリスナー設定 ### 
+  ALBListenerHTTP:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      # HTTP通信でのアクセスはHTTPSへリダイレクトさせる
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+            Protocol: "HTTPS"
+            Port: "443"
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301"
+      LoadBalancerArn: !Ref "ALB"
+      Port: "80"
+      Protocol: "HTTP"
+
+### HTTPS通信のリスナー設定 ###
+  ALBListenerHTTPS:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref "TargetGroup"
+      LoadBalancerArn: !Ref "ALB"
+      Port: "443"
+      Protocol: "HTTPS"
+      # SSL証明書をセット
+      Certificates: 
+        - CertificateArn: !Ref "ALBCertificateARN"
+      
+      
+# ------------------------------------------------------------
+# Output Parameter
+# ------------------------------------------------------------
+Outputs:
+### ALB ###
+  ALBDNSName:
+    Value: !GetAtt ALB.DNSName
+    Export:
+      Name: !Sub "${PJPrefix}-ALB-DNSName"
+  ALBCanonicalHostedZoneID:
+    Value: !GetAtt ALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub "${PJPrefix}-ALB-CanonicalHostedZoneID"
+      
+### TargetGroup ###
+  TargetGroup:
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Sub "${PJPrefix}-TargetGroup"

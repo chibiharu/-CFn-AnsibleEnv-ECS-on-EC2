@@ -1,0 +1,7 @@
+Host web01
+  HostName xx.xx.xx.xx(Specify the private IP address of the host instance)
+  Port xxxxx(specify the dynamic port of each container)
+
+Host web02
+  HostName xx.xx.xx.xx(Specify the private IP address of the host instance)
+  Port xxxxx(specify the dynamic port of each container)
