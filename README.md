@@ -69,7 +69,7 @@ hoge.txt # 左記ファイルが生成されていることを確認
 
 ***
 ## 参考
-[【CFn】Ansibleの検証環境をECS(EC2)上に構築する①(環境構築編)]()<br>
+[【CFn】Ansibleの検証環境をECS(EC2)上に構築する①(環境構築編)](https://chibinfra-techblog.com/cloudformation-ansible-on-ecs-ec2-1/)<br>
 [【CFn】Ansibleの検証環境をECS(EC2)上に構築する②(Ansible実行編)]()
 
 
