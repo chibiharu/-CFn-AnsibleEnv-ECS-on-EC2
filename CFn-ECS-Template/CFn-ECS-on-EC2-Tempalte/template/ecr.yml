@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Create Basis-Env-ECR by chibiharu"
+
+# ------------------------------------------------------------
+#  Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### ECR RepositoryName ###
+  RepositoryName: 
+    Type: String
+    Default: "repo-1"
+
+
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+#  ECR
+# ------------------------------------------------------------
+  ECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName

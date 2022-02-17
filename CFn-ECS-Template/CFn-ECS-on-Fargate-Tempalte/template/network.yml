@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create Basis-Env-Network by chibiharu"
+    
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - PJPrefix
+          - VPCCIDR
+          - PublicSubnetACIDR
+          - PublicSubnetCCIDR
+          - PrivateSubnetACIDR
+      
+# ------------------------------------------------------------
+# Input Parameters
+# ------------------------------------------------------------
+Parameters:
+### Project Prefix ###
+  PJPrefix:
+    Type: String
+### VPC ###
+  VPCCIDR:
+    Type: String
+    Default: "192.168.0.0/20"
+### Public Subnet ###
+  PublicSubnetACIDR:
+    Type: String
+    Default: "192.168.1.0/24"
+### Public Subnet ###
+  PublicSubnetCCIDR:
+    Type: String
+    Default: "192.168.2.0/24"
+### Private Subnet ###
+  PrivateSubnetACIDR:
+    Type: String
+    Default: "192.168.3.0/24"
+
+
+### Resources ###
+Resources: 
+# ------------------------------------------------------------
+# VPC
+# ------------------------------------------------------------
+  VPC: 
+    Type: "AWS::EC2::VPC"
+    Properties: 
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-vpc"
+          
+          
+# ------------------------------------------------------------
+# InternetGateway
+# ------------------------------------------------------------
+  IGW: 
+    Type: "AWS::EC2::InternetGateway"
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-igw"
+          
+  IGWAttachment: 
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties: 
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+      
+      
+# ------------------------------------------------------------
+# NatGateway
+# ------------------------------------------------------------
+### NAT Gateway ###
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - NatGatewayEIP
+          - AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-NAT-Gateway"
+          
+### NAT Gateway EIP ###
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${PJPrefix}-NGW-EIP" 
+           
+           
+# ------------------------------------------------------------
+# Subnet
+# ------------------------------------------------------------
+### Public SubnetA ###
+  PublicSubnetA: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: !Ref PublicSubnetACIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PublicSubnet-A"
+
+### Public SubnetC ###
+  PublicSubnetC: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: !Ref PublicSubnetCCIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PublicSubnet-C"
+          
+### Private Subnet A ###
+  PrivateSubnetA: 
+    Type: "AWS::EC2::Subnet"
+    Properties: 
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: !Ref PrivateSubnetACIDR
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PrivateSubnet-A"
+          
+          
+# ------------------------------------------------------------
+# RouteTable
+# ------------------------------------------------------------
+### Public Subnet A Routing ###
+  PublicARTB: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PublicRouteA"
+
+  PublicSubnetARTBAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref PublicSubnetA 
+      RouteTableId: !Ref PublicARTB
+
+  PublicRouteA01: 
+    Type: "AWS::EC2::Route"
+    Properties: 
+      RouteTableId: !Ref PublicARTB
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref IGW 
+      
+### Public Subnet C Routing ###
+  PublicCRTB: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PublicRouteC"
+          
+  PublicSubnetCRTBAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref PublicSubnetC 
+      RouteTableId: !Ref PublicCRTB
+      
+  PublicRouteC01: 
+    Type: "AWS::EC2::Route"
+    Properties: 
+      RouteTableId: !Ref PublicCRTB
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref IGW 
+      
+### Privatec Subnet A Routing ###
+  PrivateARTB: 
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC 
+      Tags: 
+        - Key: Name
+          Value: !Sub "${PJPrefix}-PrivateRouteA"
+          
+  PrivateSubnetARTBAssociation: 
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties: 
+      SubnetId: !Ref PrivateSubnetA 
+      RouteTableId: !Ref PrivateARTB
+
+  PrivateRouteA01: 
+    Type: "AWS::EC2::Route"
+    Properties: 
+      RouteTableId: !Ref PrivateARTB
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NatGateway
+      
+      
+# ------------------------------------------------------------
+# Output Parameter
+# ------------------------------------------------------------
+Outputs:
+### VPC ###
+  VPC:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${PJPrefix}-vpc"
+      
+### Subnet ###
+## Public SubnetA ##
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${PJPrefix}-PublicSubnet-A"
+
+## Public SubnetC ##
+  PublicSubnetC:
+    Value: !Ref PublicSubnetC
+    Export:
+      Name: !Sub "${PJPrefix}-PublicSubnet-C"
+      
+## Private SubnetA ##
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub "${PJPrefix}-PrivateSubnet-A"

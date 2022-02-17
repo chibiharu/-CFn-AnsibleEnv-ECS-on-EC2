@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:
+  "Create ECS-on-EC2-ECS-Service By chibiharu"
+
+# ------------------------------------------------------------
+#  Metadate
+# ------------------------------------------------------------
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Parameters:
+          - ServiceName
+          - DesiredServiceCount
+          - ImageURI
+          - ContainerName
+          - PJPrefix
+          - ContainerPort
+          
+          
+# ------------------------------------------------------------
+#  Input Parametrs
+# ------------------------------------------------------------        
+Parameters:
+### ECS Services Parameters ###
+  ServiceName:
+    Type: "String"
+    Default: "Web-Container-Service"
+  DesiredServiceCount:
+    Type: "Number"
+    Default: "2"
+  ImageURI:
+    Type: "String"
+    Default: "159420152227.dkr.ecr.ap-northeast-1.amazonaws.com/repo-1:latest"
+  ContainerName:
+    Type: "String"
+    Default: "Web-Container"
+### Share Parametrs ###
+  PJPrefix:
+    Type: String
+  ContainerPort:
+    Type: "Number"
+    Default: "80"  
+    
+    
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+#  ECS TaskDefinition
+# ------------------------------------------------------------
+### タスク定義の作成 ###
+  TaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      ### タスクの作成 ###
+      ContainerDefinitions: 
+        - Name: !Ref "ContainerName"
+          Image: !Ref "ImageURI"
+          Cpu: "0"
+          Memory: "128"
+          PortMappings: 
+            - ContainerPort: !Ref "ContainerPort"
+              HostPort: "0"
+          Essential: "true" 
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Sub "/ecs/${ServiceName}"
+              awslogs-region: "ap-northeast-1"
+              awslogs-stream-prefix: "ecs"
+              awslogs-create-group: "true"
+      Family: !Sub "${ServiceName}-task"
+      NetworkMode: "bridge"
+      Tags: 
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-task"
+          
+          
+# ------------------------------------------------------------
+#  ECS Service
+# ------------------------------------------------------------
+### サービスの作成 ###
+  ECSService:
+    Type: "AWS::ECS::Service"
+    Properties: 
+      ServiceName: !Ref "ServiceName"
+      Cluster: { "Fn::ImportValue": !Sub "${PJPrefix}-ClusterARN" }
+      DesiredCount: !Ref "DesiredServiceCount"
+      LaunchType: "EC2"
+      LoadBalancers: 
+        - TargetGroupArn: { "Fn::ImportValue": !Sub "${PJPrefix}-TargetGroup" }
+          ContainerName: !Ref "ContainerName"
+          ContainerPort: !Ref "ContainerPort"
+      SchedulingStrategy: "REPLICA"
+      DeploymentConfiguration:
+        MaximumPercent: "200"
+        MinimumHealthyPercent: "50"
+      Tags: 
+        - Key: "Name"
+          Value: !Ref "ServiceName"
+      TaskDefinition: !Ref TaskDefinition

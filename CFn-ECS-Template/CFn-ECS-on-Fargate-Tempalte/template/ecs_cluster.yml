@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:
+  "Create ECS-on-Fargate-ECS-Cluster By chibiharu"
+
+
+# ------------------------------------------------------------
+#  Input Parameters
+# ------------------------------------------------------------
+Parameters:
+  PJPrefix:
+    Type: "String"
+  ClusterName:
+    Type: "String"
+    Description: "Enter the name of the ECS Cluster."
+    Default: "ECS-cluster"
+    
+    
+### Resources ###
+Resources:
+# ------------------------------------------------------------
+#  ECS Cluster
+# ------------------------------------------------------------
+### ECSクラスターの作成 ###
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties: 
+      ClusterName: !Ref "ClusterName"
+      ClusterSettings: 
+        - Name: "containerInsights"
+          Value: "disabled"
+      Tags: 
+        - Key: "Name"
+          Value: !Ref "ClusterName"
+          
+          
+# ------------------------------------------------------------
+# Output Parameters
+# ------------------------------------------------------------ 
+Outputs:
+### ECSClusterARN ###
+  ECSClusterARN:
+    Value: !GetAtt ECSCluster.Arn
+    Export:
+      Name: !Sub "${PJPrefix}-ClusterARN"
